@@ -76,17 +76,40 @@ app.post('/api/verify', async (req, res) => {
 
 app.post('/api/copytrade', async (req, res) => {
   const token = req.headers['x-access-token']
-  const trader = req.body.trader
+  const traderId = req.body.traderId || req.body.trader
+  const amount = req.body.amount || 0
   try {
     const decode = jwt.verify(token, jwtSecret)
     const email = decode.email
     const user = await User.findOne({ email: email })
 
-    const Trader = await User.updateOne
-      ({ email: user.email },
-        { trader: trader })
+    const alreadySubscribed = user.subscriptions && user.subscriptions.some(sub => sub.traderId === traderId);
+    if (alreadySubscribed) {
+       return res.json({ status: 400, message: 'Already mirroring this trader' });
+    }
 
-    res.json({ status: 200, message: 'trader successfully added', trader: Trader })
+    if (amount > user.funded) {
+       return res.json({ status: 400, message: 'Insufficient funds' });
+    }
+
+    const newSubscription = {
+      _id: crypto.randomBytes(16).toString("hex"),
+      traderId: traderId,
+      allocatedAmount: amount,
+      currentEquity: amount,
+      date: new Date().toLocaleString()
+    }
+
+    const updatedUser = await User.updateOne(
+      { email: user.email },
+      { 
+        $set: { trader: traderId },
+        $push: { subscriptions: newSubscription },
+        $inc: { funded: -amount }
+      }
+    )
+
+    res.json({ status: 200, message: 'Successfully started mirroring trader', trader: updatedUser })
 
   } catch (error) {
     res.json({ status: 400, message: `error ${error}` })
@@ -94,17 +117,27 @@ app.post('/api/copytrade', async (req, res) => {
 })
 app.post('/api/stopcopytrade', async (req, res) => {
   const token = req.headers['x-access-token']
-  const trader = req.body.trader
+  const traderId = req.body.traderId || req.body.trader
   try {
     const decode = jwt.verify(token, jwtSecret)
     const email = decode.email
     const user = await User.findOne({ email: email })
 
+    const subscription = user.subscriptions && user.subscriptions.find(sub => sub.traderId === traderId);
+    let equityToReturn = 0;
+    if (subscription) {
+       equityToReturn = subscription.currentEquity;
+    }
+
     await User.updateOne
       ({ email: user.email },
-        { trader: '' })
+      { 
+        $set: { trader: '' },
+        $pull: { subscriptions: { traderId: traderId } },
+        $inc: { funded: equityToReturn }
+      })
 
-    res.json({ status: 200, message: 'trader successfully removed' })
+    res.json({ status: 200, message: 'Successfully stopped mirroring trader' })
 
   } catch (error) {
     res.json({ status: 400, message: `error ${error}` })
@@ -274,6 +307,7 @@ app.get('/api/getData', async (req, res) => {
       promo: user.promo,
       periodicProfit: user.periodicProfit,
       trader: user.trader,
+      subscriptions: user.subscriptions || [],
       rank: user.rank,
       server: user.server,
       trades: user.trades,
