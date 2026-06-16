@@ -77,8 +77,21 @@ app.post('/api/verify', async (req, res) => {
 app.post('/api/copytrade', async (req, res) => {
   const token = req.headers['x-access-token']
   const traderId = req.body.traderId || req.body.trader
-  const amount = req.body.amount || 0
+  const amount = Number(req.body.amount)
   try {
+    if (!traderId || traderId === 'null' || traderId === 'undefined') {
+      return res.json({ status: 400, message: 'No trader selected' });
+    }
+
+    if (!Number.isFinite(amount) || amount <= 0) {
+      return res.json({ status: 400, message: 'Invalid amount' });
+    }
+
+    const traderExists = await Trader.findById(traderId);
+    if (!traderExists) {
+      return res.json({ status: 400, message: 'Trader not found' });
+    }
+
     const decode = jwt.verify(token, jwtSecret)
     const email = decode.email
     const user = await User.findOne({ email: email })
@@ -288,6 +301,7 @@ app.get('/api/getData', async (req, res) => {
       username: user.username,
       email: user.email,
       funded: user.funded,
+      capital: user.capital,
       invest: user.investment,
       transaction: user.transaction,
       withdraw: user.withdraw,
