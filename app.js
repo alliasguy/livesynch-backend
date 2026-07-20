@@ -325,7 +325,27 @@ app.get('/api/getData', async (req, res) => {
       rank: user.rank,
       server: user.server,
       trades: user.trades,
-      verified: user.verified
+      verified: user.verified,
+      middlename: user.middlename,
+      dateOfBirth: user.dateOfBirth,
+      nationality: user.nationality,
+      city: user.city,
+      employmentStatus: user.employmentStatus,
+      occupation: user.occupation,
+      annualIncome: user.annualIncome,
+      sourceOfFunds: user.sourceOfFunds,
+      investmentExperience: user.investmentExperience,
+      idType: user.idType,
+      idNumber: user.idNumber,
+      idExpiry: user.idExpiry,
+      idDocumentFront: user.idDocumentFront,
+      idDocumentBack: user.idDocumentBack,
+      proofOfAddress: user.proofOfAddress,
+      selfiePhoto: user.selfiePhoto,
+      kycStatus: user.kycStatus,
+      kycSubmittedDate: user.kycSubmittedDate,
+      kycApprovedDate: user.kycApprovedDate,
+      kycRejectionReason: user.kycRejectionReason
     });
   } catch (error) {
     console.error('Error fetching user data:', error.message);
